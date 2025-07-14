@@ -1,22 +1,28 @@
-# Imagen base de Java 24
-FROM openjdk:24-jdk-slim
+# Imagen base con Maven y Java 24
+FROM maven:3.9.6-openjdk-24-slim AS build
 
 # Directorio de trabajo
 WORKDIR /app
 
-# Copiar archivos de Maven
-COPY pom.xml mvnw ./
-COPY .mvn .mvn
-
-# Dar permisos y descargar dependencias
-RUN chmod +x mvnw && ./mvnw dependency:go-offline -B
+# Copiar pom.xml y descargar dependencias
+COPY pom.xml .
+RUN mvn dependency:go-offline -B
 
 # Copiar codigo fuente y construir
 COPY src ./src
-RUN ./mvnw clean package -DskipTests
+RUN mvn clean package -DskipTests
+
+# Imagen final solo con Java
+FROM openjdk:24-jre-slim
+
+# Directorio de trabajo
+WORKDIR /app
+
+# Copiar el JAR construido
+COPY --from=build /app/target/demo-0.0.1-SNAPSHOT.jar app.jar
 
 # Exponer puerto
 EXPOSE 8080
 
 # Ejecutar aplicacion
-CMD ["java", "-jar", "target/demo-0.0.1-SNAPSHOT.jar"]
+CMD ["java", "-jar", "app.jar"]
